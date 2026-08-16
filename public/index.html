@@ -66,12 +66,12 @@
   <div class="modal-card">
     <div class="modal-head"><div><span class="eyebrow">DANH MỤC ĐỒ MƯỢN</span><h2>Thêm đồ mới</h2></div><button id="closeItemModal" type="button" class="modal-close">×</button></div>
     <form id="itemForm" class="item-form">
-      <label><span>Tên tiếng Việt *</span><input name="name_vi" required placeholder="Ví dụ: Nồi lẩu"></label>
+      <label class="wide-modal"><span>Tên tiếng Việt *</span><div class="translate-input-row"><input name="name_vi" required placeholder="Ví dụ: Ghế gỗ"><button type="button" id="autoTranslateBtn" class="secondary">✨ Tự động dịch</button></div><small id="translateStatus" class="translate-status">Nhập tên tiếng Việt rồi bấm “Tự động dịch”.</small></label>
       <label><span>English</span><input name="name_en" placeholder="Hot pot"></label>
       <label><span>中文</span><input name="name_zh" placeholder="火锅"></label>
       <label><span>한국어</span><input name="name_ko" placeholder="전골냄비"></label>
       <label class="wide-modal"><span>PIN quản lý *</span><input name="pin" type="password" required placeholder="PIN quản lý"></label>
-      <div class="modal-note">Tên tiếng Việt dùng để quản lý nội bộ. Ba ô còn lại dùng để tự động dịch trên phiếu khách.</div>
+      <div class="modal-note"><b>AI tự động dịch:</b> chỉ cần nhập tên tiếng Việt và bấm <b>Tự động dịch</b>. Hệ thống sẽ điền English / 中文 / 한국어; nhân viên có thể chỉnh lại trước khi lưu. Nếu bỏ trống 3 ô này khi bấm Lưu, hệ thống cũng sẽ tự dịch.</div>
       <div class="modal-actions"><button class="primary" type="submit">Lưu vào danh mục</button><button class="secondary" type="button" id="cancelItemModal">Hủy</button></div>
     </form>
   </div>

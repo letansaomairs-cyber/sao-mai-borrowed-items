@@ -34,3 +34,7 @@ Chạy `schema.sql` cho database mới. Với database hiện có, Worker sẽ t
 - Quản lý có thể sửa/xóa danh mục ngay trên web bằng PIN.
 - Phiếu in tự dùng bản dịch của món đồ theo ngôn ngữ đã chọn.
 - Bảng `item_catalog` được Worker tự tạo và seed danh mục mặc định nếu chưa có dữ liệu.
+
+
+## Workers AI tự động dịch
+`wrangler.jsonc` đã cấu hình AI binding `AI`. Khi thêm đồ mới, Worker dùng Workers AI để dịch tên tiếng Việt sang English, Simplified Chinese và Korean.

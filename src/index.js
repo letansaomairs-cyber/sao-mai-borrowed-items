@@ -26,8 +26,43 @@ async function ensureCatalogTable(env){
 }
 function safeExt(type,name=''){const byType={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'}[type];if(byType)return byType;const m=String(name).toLowerCase().match(/\.([a-z0-9]{2,5})$/);return m?m[1]:'bin';}
 
+async function translateItemAI(env,nameVi){
+  const name_vi=clean(nameVi,120);
+  if(!name_vi)throw new Error('Nhập tên tiếng Việt trước khi dịch');
+  if(!env.AI)throw new Error('Workers AI binding chưa được cấu hình');
+  const result=await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast',{
+    messages:[
+      {role:'system',content:'Bạn là biên dịch viên cho khách sạn/resort. Hãy dịch chính xác tên một đồ vật/công cụ ngắn từ tiếng Việt sang English, Simplified Chinese và Korean. Chỉ dịch tên đồ vật, không thêm số lượng, giải thích, dấu ngoặc hay câu mô tả. Giữ nguyên tên thương hiệu/model nếu có.'},
+      {role:'user',content:name_vi}
+    ],
+    response_format:{
+      type:'json_schema',
+      json_schema:{
+        type:'object',
+        properties:{en:{type:'string'},zh:{type:'string'},ko:{type:'string'}},
+        required:['en','zh','ko'],
+        additionalProperties:false
+      }
+    },
+    max_tokens:120,
+    temperature:0.1
+  });
+  let out=result?.response;
+  if(typeof out==='string'){
+    try{out=JSON.parse(out)}catch{throw new Error('AI trả về bản dịch không đúng định dạng')}
+  }
+  const en=clean(out?.en,120),zh=clean(out?.zh,120),ko=clean(out?.ko,120);
+  if(!en||!zh||!ko)throw new Error('AI chưa trả đủ 3 bản dịch');
+  return {name_vi,name_en:en,name_zh:zh,name_ko:ko};
+}
+async function translateCatalogItem(request,env){
+  if(!requireAdmin(request,env))return json({error:'Sai mã PIN'},401);
+  try{const b=await request.json();const translated=await translateItemAI(env,b.name_vi);return json({ok:true,...translated});}
+  catch(e){return json({error:e?.message||String(e)},502)}
+}
+
 async function listCatalog(request,env){await ensureCatalogTable(env);const u=new URL(request.url),department=clean(u.searchParams.get('department'),30);let sql=`SELECT * FROM item_catalog WHERE active=1`,binds=[];if(department&&['fb','housekeeping','reception'].includes(department)){sql+=` AND department=?`;binds.push(department)}sql+=` ORDER BY department,name_vi COLLATE NOCASE`;const rs=await env.DB.prepare(sql).bind(...binds).all();return json({items:rs.results||[]});}
-async function createCatalog(request,env){if(!requireAdmin(request,env))return json({error:'Sai mã PIN'},401);await ensureCatalogTable(env);try{const b=await request.json(),department=clean(b.department,30),name_vi=clean(b.name_vi,120),name_en=clean(b.name_en,120),name_zh=clean(b.name_zh,120),name_ko=clean(b.name_ko,120);if(!['fb','housekeeping','reception'].includes(department))return json({error:'Bộ phận không hợp lệ'},400);if(!name_vi)return json({error:'Tên tiếng Việt là bắt buộc'},400);const now=nowISO();const rs=await env.DB.prepare(`INSERT INTO item_catalog (department,name_vi,name_en,name_zh,name_ko,active,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?)`).bind(department,name_vi,name_en,name_zh,name_ko,now,now).run();return json({ok:true,id:rs.meta.last_row_id,item:{id:rs.meta.last_row_id,department,name_vi,name_en,name_zh,name_ko,active:1}});}catch(e){return json({error:String(e?.message||e).includes('UNIQUE')?'Tên đồ này đã có trong bộ phận':e?.message||String(e)},400)}}
+async function createCatalog(request,env){if(!requireAdmin(request,env))return json({error:'Sai mã PIN'},401);await ensureCatalogTable(env);try{const b=await request.json(),department=clean(b.department,30),name_vi=clean(b.name_vi,120);let name_en=clean(b.name_en,120),name_zh=clean(b.name_zh,120),name_ko=clean(b.name_ko,120);if(!['fb','housekeeping','reception'].includes(department))return json({error:'Bộ phận không hợp lệ'},400);if(!name_vi)return json({error:'Tên tiếng Việt là bắt buộc'},400);if(!name_en||!name_zh||!name_ko){const tr=await translateItemAI(env,name_vi);name_en=name_en||tr.name_en;name_zh=name_zh||tr.name_zh;name_ko=name_ko||tr.name_ko;}const now=nowISO();const rs=await env.DB.prepare(`INSERT INTO item_catalog (department,name_vi,name_en,name_zh,name_ko,active,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?)`).bind(department,name_vi,name_en,name_zh,name_ko,now,now).run();return json({ok:true,id:rs.meta.last_row_id,item:{id:rs.meta.last_row_id,department,name_vi,name_en,name_zh,name_ko,active:1}});}catch(e){return json({error:String(e?.message||e).includes('UNIQUE')?'Tên đồ này đã có trong bộ phận':e?.message||String(e)},400)}}
 async function updateCatalog(request,env,id){if(!requireAdmin(request,env))return json({error:'Sai mã PIN'},401);await ensureCatalogTable(env);try{const b=await request.json(),department=clean(b.department,30),name_vi=clean(b.name_vi,120),name_en=clean(b.name_en,120),name_zh=clean(b.name_zh,120),name_ko=clean(b.name_ko,120);if(!['fb','housekeeping','reception'].includes(department)||!name_vi)return json({error:'Thông tin không hợp lệ'},400);await env.DB.prepare(`UPDATE item_catalog SET department=?,name_vi=?,name_en=?,name_zh=?,name_ko=?,updated_at=? WHERE id=?`).bind(department,name_vi,name_en,name_zh,name_ko,nowISO(),int(id)).run();return json({ok:true});}catch(e){return json({error:String(e?.message||e).includes('UNIQUE')?'Tên đồ này đã có trong bộ phận':e?.message||String(e)},400)}}
 async function deleteCatalog(request,env,id){if(!requireAdmin(request,env))return json({error:'Sai mã PIN'},401);await ensureCatalogTable(env);await env.DB.prepare(`UPDATE item_catalog SET active=0,updated_at=? WHERE id=?`).bind(nowISO(),int(id)).run();return json({ok:true});}
 
@@ -41,6 +76,7 @@ async function checkCheckout(request,env){if(!requireAdmin(request,env))return j
 async function serveImage(env,id){await ensureImageTable(env);const img=await env.DB.prepare(`SELECT object_key,file_name,content_type FROM loan_images WHERE id=?`).bind(int(id)).first();if(!img)return new Response('Not found',{status:404});if(!env.IMAGES)return new Response('R2 binding missing',{status:500});const obj=await env.IMAGES.get(img.object_key);if(!obj)return new Response('Not found',{status:404});const headers=new Headers();obj.writeHttpMetadata(headers);headers.set('content-type',img.content_type||headers.get('content-type')||'application/octet-stream');headers.set('cache-control','private, max-age=300');headers.set('content-disposition',`inline; filename*=UTF-8''${encodeURIComponent(img.file_name||'image')}`);return new Response(obj.body,{headers});}
 
 export default{async fetch(request,env){try{const url=new URL(request.url),path=url.pathname,method=request.method.toUpperCase();
+  if(path==='/api/translate-item'){if(method==='POST')return translateCatalogItem(request,env);return json({error:'Method not allowed'},405)}
   if(path==='/api/items'){if(method==='GET')return listCatalog(request,env);if(method==='POST')return createCatalog(request,env);return json({error:'Method not allowed'},405)}
   const itemMatch=path.match(/^\/api\/items\/(\d+)$/);if(itemMatch){if(method==='PATCH')return updateCatalog(request,env,itemMatch[1]);if(method==='DELETE')return deleteCatalog(request,env,itemMatch[1]);return json({error:'Method not allowed'},405)}
   if(path==='/api/loans'){if(method==='GET')return listLoans(request,env);if(method==='POST')return createLoan(request,env);return json({error:'Method not allowed'},405)}
