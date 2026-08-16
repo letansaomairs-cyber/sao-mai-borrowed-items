@@ -1,9 +1,12 @@
 {
   "name": "sao-mai-borrowed-items",
+  "main": "./src/index.js",
   "compatibility_date": "2026-08-16",
 
   "assets": {
-    "directory": "./public"
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
   },
 
   "d1_databases": [
