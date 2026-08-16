@@ -1,13 +1,15 @@
 {
   "name": "sao-mai-borrowed-items",
   "compatibility_date": "2026-08-16",
+
   "assets": {
     "directory": "./public"
   },
+
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "saomai-borrowed-items-db",
+      "database_name": "sao-mai-borrowed-items-db",
       "database_id": "b96c78c8-e63f-48df-b8c9-2eedd7fd11ad"
     }
   ]
