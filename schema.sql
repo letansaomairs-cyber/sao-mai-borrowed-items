@@ -45,3 +45,19 @@ CREATE TABLE IF NOT EXISTS loan_images (
 );
 
 CREATE INDEX IF NOT EXISTS idx_loan_images_loan ON loan_images(loan_id);
+
+
+-- Danh mục đồ mượn đa ngôn ngữ, cho phép quản lý thêm/sửa/xóa mà không sửa code.
+CREATE TABLE IF NOT EXISTS item_catalog (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  department TEXT NOT NULL CHECK(department IN ('fb','housekeeping','reception')),
+  name_vi TEXT NOT NULL,
+  name_en TEXT,
+  name_zh TEXT,
+  name_ko TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_item_catalog_unique ON item_catalog(department, name_vi COLLATE NOCASE);
+CREATE INDEX IF NOT EXISTS idx_item_catalog_dept ON item_catalog(department, active, name_vi);

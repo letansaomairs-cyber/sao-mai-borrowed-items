@@ -1,4 +1,4 @@
-let dept='fb', adminPin='', manageOpen=false, lastReceipt=null, lastReceiptLang='vi';
+let dept='fb', adminPin='', manageOpen=false, lastReceipt=null, lastReceiptLang='vi', catalogItems=[];
 const DEPTS={fb:{eyebrow:'F&B',title:'Quản lý công cụ F&B',items:['Ly thủy tinh','Ly rượu vang','Tách cà phê','Muỗng','Nĩa','Dao ăn','Đĩa','Tô','Khay','Xô đá','Bình nước','Dụng cụ mở rượu']},housekeeping:{eyebrow:'HOUSEKEEPING',title:'Quản lý công cụ Housekeeping',items:['Bàn ủi','Cầu là','Móc áo','Gối','Chăn','Khăn tắm','Khăn mặt','Máy sấy tóc','Ổ cắm nối dài','Nôi em bé','Ghế em bé']},reception:{eyebrow:'LỄ TÂN',title:'Quản lý công cụ Lễ tân',items:['Ô / dù','Adapter','Sạc điện thoại','Ổ cắm','Kéo','Cân hành lý','Bút','Bộ chuyển đổi điện','Dây sạc']}};
 const $=s=>document.querySelector(s);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -20,7 +20,7 @@ const ITEM_I18N={
   'cân hành lý':{en:'Luggage scale',zh:'行李秤',ko:'수하물 저울'},'bút':{en:'Pen',zh:'笔',ko:'펜'},'bộ chuyển đổi điện':{en:'Power adapter',zh:'电源转换器',ko:'전원 어댑터'},'dây sạc':{en:'Charging cable',zh:'充电线',ko:'충전 케이블'}
 };
 function itemKey(v){return String(v||'').trim().toLocaleLowerCase('vi-VN').replace(/\s+/g,' ')}
-function translateItem(v,lang){const raw=String(v||'').trim();if(!raw||lang==='vi')return raw;return ITEM_I18N[itemKey(raw)]?.[lang]||raw}
+function translateItem(v,lang){const raw=String(v||'').trim();if(!raw||lang==='vi')return raw;const c=catalogItems.find(x=>itemKey(x.name_vi)===itemKey(raw));if(c){const k=lang==='en'?'name_en':lang==='zh'?'name_zh':'name_ko';if(c[k])return c[k]}return ITEM_I18N[itemKey(raw)]?.[lang]||raw}
 
 const RECEIPT_TEXT={
   vi:{title:'PHIẾU XÁC NHẬN MƯỢN ĐỒ',code:'MÃ PHIẾU',guest:'Khách',room:'Phòng',department:'Bộ phận',item:'Đồ mượn',qty:'Số lượng',staff:'Nhân viên giao',borrowed:'Thời gian giao',expected:'Dự kiến trả',notes:'Ghi chú',photo:'Ảnh đồ mượn',rulesTitle:'XÁC NHẬN & QUY ĐỊNH MƯỢN ĐỒ',rule:(q,item)=>`Tôi xác nhận đã nhận thêm ${padQty(q)} ${item} từ Sao Mai Phu My Resort. Tôi có trách nhiệm bảo quản và hoàn trả ${item} khi sử dụng xong. Nếu làm mất, làm hỏng hoặc không hoàn trả, tôi đồng ý thanh toán phí bồi thường theo quy định của Sao Mai Phu My Resort.`,guestSign:'KHÁCH XÁC NHẬN',staffSign:'NHÂN VIÊN GIAO',signNote:'Ký và ghi rõ họ tên',place:'Phú Mỹ'},
@@ -29,11 +29,22 @@ const RECEIPT_TEXT={
   ko:{title:'대여 물품 확인서',code:'확인서 번호',guest:'고객명',room:'객실',department:'부서',item:'대여 물품',qty:'수량',staff:'인계 직원',borrowed:'인계 시간',expected:'예상 반납일',notes:'비고',photo:'대여 물품 사진',rulesTitle:'확인 및 대여 규정',rule:(q,item)=>`본인은 Sao Mai Phu My Resort로부터 ${padQty(q)}개의 ${item}을 수령했음을 확인합니다. 본인은 해당 물품을 안전하게 보관하고 사용 후 반납할 책임이 있습니다. 분실, 파손 또는 미반납 시 Sao Mai Phu My Resort의 규정에 따른 배상금을 지불하는 데 동의합니다.`,guestSign:'고객 확인',staffSign:'인계 직원',signNote:'서명 및 성명',place:'푸미'}
 };
 
-function renderDept(){const d=DEPTS[dept]; $('#deptEyebrow').textContent=d.eyebrow;$('#deptTitle').textContent=d.title;$('#itemSuggestions').innerHTML=d.items.map(x=>`<option value="${esc(x)}">`).join('');document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));updateRegulationPreview();if(manageOpen)loadRows();}
+async function loadCatalog(){const r=await fetch(`/api/items?department=${encodeURIComponent(dept)}`);const j=await r.json();if(!r.ok)throw new Error(j.error||'Không tải được danh mục');catalogItems=j.items||[];const sel=$('#itemName');const current=sel.value;sel.innerHTML='<option value="">-- Chọn đồ mượn --</option>'+catalogItems.map(x=>`<option value="${esc(x.name_vi)}">${esc(x.name_vi)}</option>`).join('');if(catalogItems.some(x=>x.name_vi===current))sel.value=current;updateRegulationPreview();}
+async function renderDept(){const d=DEPTS[dept]; $('#deptEyebrow').textContent=d.eyebrow;$('#deptTitle').textContent=d.title;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));try{await loadCatalog()}catch(e){console.error(e);const sel=$('#itemName');sel.innerHTML='<option value="">-- Chọn đồ mượn --</option>'+d.items.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}updateRegulationPreview();if(manageOpen)loadRows();if(!$('#catalogManager').classList.contains('hidden'))loadCatalogManager();}
 function updateRegulationPreview(){const form=$('#loanForm');const q=form.qty?.value||1;const raw=form.item_name?.value.trim()||'đồ dùng';const lang=$('#receiptLang').value||'vi';const item=translateItem(raw,lang);$('#regulationPreview').textContent=RECEIPT_TEXT[lang].rule(q,item)}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{dept=b.dataset.dept;renderDept()});
 $('#loanForm').addEventListener('input',e=>{if(['qty','item_name','receipt_lang'].includes(e.target.name))updateRegulationPreview()});
-$('#receiptLang').onchange=updateRegulationPreview;
+$('#receiptLang').onchange=updateRegulationPreview;$('#itemName').onchange=updateRegulationPreview;
+
+
+function openItemModal(){const f=$('#itemForm');f.reset();f.pin.value=adminPin||'';$('#itemModal').classList.remove('hidden');setTimeout(()=>f.name_vi.focus(),50)}
+function closeItemModal(){$('#itemModal').classList.add('hidden')}
+$('#addItemBtn').onclick=openItemModal;$('#closeItemModal').onclick=closeItemModal;$('#cancelItemModal').onclick=closeItemModal;$('#itemModal').onclick=e=>{if(e.target.id==='itemModal')closeItemModal()};
+$('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,pin=f.pin.value.trim();if(!pin)return alert('Nhập PIN quản lý');const body={department:dept,name_vi:f.name_vi.value.trim(),name_en:f.name_en.value.trim(),name_zh:f.name_zh.value.trim(),name_ko:f.name_ko.value.trim()};const r=await fetch('/api/items',{method:'POST',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)return alert(j.error||'Không thêm được đồ');adminPin=pin;closeItemModal();await loadCatalog();$('#itemName').value=body.name_vi;updateRegulationPreview();alert('Đã thêm vào danh mục và có thể sử dụng ngay.');if(!$('#catalogManager').classList.contains('hidden'))loadCatalogManager();};
+$('#catalogManageBtn').onclick=()=>{$('#catalogManager').classList.remove('hidden');loadCatalogManager()};$('#closeCatalogManager').onclick=()=>$('#catalogManager').classList.add('hidden');
+async function loadCatalogManager(){try{await loadCatalog();$('#catalogDeptName').textContent=deptName(dept);$('#catalogRows').innerHTML=catalogItems.map(x=>`<div class="catalog-row"><b>${esc(x.name_vi)}</b><span>${esc(x.name_en||'—')}</span><span>${esc(x.name_zh||'—')}</span><span>${esc(x.name_ko||'—')}</span><div class="catalog-actions"><button class="secondary" onclick="editCatalog(${x.id})">Sửa</button><button class="danger" onclick="deleteCatalog(${x.id})">Xóa</button></div></div>`).join('')||'<div>Chưa có danh mục.</div>'}catch(e){alert(e.message)}}
+window.editCatalog=async id=>{const x=catalogItems.find(v=>Number(v.id)===Number(id));if(!x)return;const pin=adminPin||prompt('PIN quản lý');if(!pin)return;const name_vi=prompt('Tên tiếng Việt',x.name_vi);if(name_vi===null)return;const name_en=prompt('English',x.name_en||'');if(name_en===null)return;const name_zh=prompt('中文',x.name_zh||'');if(name_zh===null)return;const name_ko=prompt('한국어',x.name_ko||'');if(name_ko===null)return;const r=await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify({department:dept,name_vi,name_en,name_zh,name_ko})});const j=await r.json();if(!r.ok)return alert(j.error||'Không sửa được');adminPin=pin;await loadCatalogManager()};
+window.deleteCatalog=async id=>{if(!confirm('Xóa đồ này khỏi danh mục? Các phiếu cũ vẫn giữ nguyên.'))return;const pin=adminPin||prompt('PIN quản lý');if(!pin)return;const r=await fetch(`/api/items/${id}`,{method:'DELETE',headers:{'x-admin-pin':pin}});const j=await r.json();if(!r.ok)return alert(j.error||'Không xóa được');adminPin=pin;await loadCatalogManager()};
 
 $('#loanImage').onchange=()=>{const f=$('#loanImage').files[0];const box=$('#imagePreview');box.innerHTML='';box.classList.add('hidden');if(!f)return;if(f.size>5*1024*1024){$('#loanImage').value='';return alert('Ảnh tối đa 5MB. Vui lòng chọn ảnh nhỏ hơn.')}if(!/^image\/(jpeg|png|webp|gif)$/i.test(f.type)){ $('#loanImage').value=''; return alert('Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.'); }const url=URL.createObjectURL(f);box.innerHTML=`<img src="${url}" alt="Xem trước"><span>${esc(f.name)} · ${(f.size/1024/1024).toFixed(2)} MB</span>`;box.classList.remove('hidden')};
 
@@ -53,7 +64,7 @@ $('#loanForm').onsubmit=async e=>{
     renderReceipt(lastReceipt,lastReceiptLang);
     $('#receiptSection').classList.remove('hidden');
     $('#receiptSection').scrollIntoView({behavior:'smooth',block:'start'});
-    e.target.reset(); e.target.qty.value=1; $('#receiptLang').value='vi'; $('#imagePreview').innerHTML=''; $('#imagePreview').classList.add('hidden'); updateRegulationPreview();
+    e.target.reset(); e.target.qty.value=1; $('#receiptLang').value='vi'; await loadCatalog(); $('#imagePreview').innerHTML=''; $('#imagePreview').classList.add('hidden'); updateRegulationPreview();
     if(manageOpen)loadRows();
   }finally{if(btn)btn.disabled=false;}
 };

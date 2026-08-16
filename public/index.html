@@ -34,7 +34,7 @@
       <label><span>Tên khách *</span><input name="guest_name" required></label>
       <label><span>Số phòng *</span><input name="room_no" required></label>
       <label><span>Ngôn ngữ phiếu</span><select name="receipt_lang" id="receiptLang"><option value="vi">VI · Tiếng Việt</option><option value="en">EN · English</option><option value="zh">中文 · 中文</option><option value="ko">한국어 · 한국어</option></select></label>
-      <label class="wide"><span>Đồ / công cụ khách mượn *</span><input name="item_name" id="itemName" list="itemSuggestions" required><datalist id="itemSuggestions"></datalist></label>
+      <label class="wide"><span>Đồ / công cụ khách mượn *</span><div class="item-picker"><select name="item_name" id="itemName" required><option value="">-- Chọn đồ mượn --</option></select><button type="button" id="addItemBtn" class="secondary add-item-btn">+ Thêm đồ mới</button></div><small class="item-help">Đồ mới sau khi thêm sẽ được lưu lại và tự dịch trên phiếu VI / EN / 中文 / 한국어.</small></label>
       <label><span>Số lượng *</span><input name="qty" type="number" min="1" value="1" required></label>
       <label><span>Ngày dự kiến trả / Checkout</span><input name="expected_return_date" type="date"></label>
       <label><span>Nhân viên giao</span><input name="staff_name" placeholder="Tên nhân viên"></label>
@@ -56,10 +56,27 @@
     <div id="manageArea" class="hidden">
       <div class="stats"><div><b id="stOpen">0</b><span>Phiếu còn mở</span></div><div><b id="stItems">0</b><span>Món chưa thu hồi</span></div><div><b id="stReturned">0</b><span>Đã trả đủ</span></div><div><b id="stIssue">0</b><span>Có mất / hỏng</span></div></div>
       <div class="filters"><input id="searchQ" placeholder="Tên khách, phòng, đồ mượn, mã phiếu..."><select id="statusFilter"><option value="">Tất cả trạng thái</option><option value="borrowing">Đang mượn</option><option value="partial">Đã trả một phần</option><option value="returned">Đã trả đủ</option><option value="resolved_issue">Đã xử lý mất/hỏng</option></select><button id="refreshBtn" class="secondary">Làm mới</button></div>
+      <div class="catalog-tools"><button id="catalogManageBtn" class="secondary" type="button">Quản lý danh mục đồ mượn</button><span>Thêm / sửa / xóa tên đồ và bản dịch 4 ngôn ngữ.</span></div>
+      <div id="catalogManager" class="catalog-manager hidden"><div class="catalog-head"><b>Danh mục hiện tại: <span id="catalogDeptName"></span></b><button id="closeCatalogManager" class="secondary" type="button">Đóng</button></div><div id="catalogRows"></div></div>
       <div class="table-wrap"><table><thead><tr><th>Ảnh</th><th>Mã</th><th>Khách / Phòng</th><th>Đồ mượn</th><th>SL</th><th>Còn</th><th>Ngày mượn</th><th>Dự kiến trả</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="loanRows"></tbody></table></div>
     </div>
   </section>
 </main>
+<div id="itemModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><div><span class="eyebrow">DANH MỤC ĐỒ MƯỢN</span><h2>Thêm đồ mới</h2></div><button id="closeItemModal" type="button" class="modal-close">×</button></div>
+    <form id="itemForm" class="item-form">
+      <label><span>Tên tiếng Việt *</span><input name="name_vi" required placeholder="Ví dụ: Nồi lẩu"></label>
+      <label><span>English</span><input name="name_en" placeholder="Hot pot"></label>
+      <label><span>中文</span><input name="name_zh" placeholder="火锅"></label>
+      <label><span>한국어</span><input name="name_ko" placeholder="전골냄비"></label>
+      <label class="wide-modal"><span>PIN quản lý *</span><input name="pin" type="password" required placeholder="PIN quản lý"></label>
+      <div class="modal-note">Tên tiếng Việt dùng để quản lý nội bộ. Ba ô còn lại dùng để tự động dịch trên phiếu khách.</div>
+      <div class="modal-actions"><button class="primary" type="submit">Lưu vào danh mục</button><button class="secondary" type="button" id="cancelItemModal">Hủy</button></div>
+    </form>
+  </div>
+</div>
+
 <footer>© 2026 Sao Mai Phu My Resort · Phú Mỹ, Việt Nam</footer>
 <script src="/app.js"></script>
 </body>

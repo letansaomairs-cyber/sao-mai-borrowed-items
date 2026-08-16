@@ -27,3 +27,10 @@ Các binding đã được khai báo trong `wrangler.jsonc` để giữ nguyên 
 Chạy `schema.sql` cho database mới. Với database hiện có, Worker sẽ tự tạo bảng `loan_images` khi cần, vì vậy không bắt buộc chạy migration thủ công để bắt đầu sử dụng ảnh.
 
 Ảnh thật được lưu trong R2; D1 chỉ lưu metadata và object key.
+
+## V2.2 - Danh mục đồ mượn động đa ngôn ngữ
+- Ô Đồ / công cụ khách mượn dùng danh mục lưu trong D1.
+- Nút + Thêm đồ mới cho phép nhập tên VI / EN / 中文 / 한국어 và lưu để dùng lại.
+- Quản lý có thể sửa/xóa danh mục ngay trên web bằng PIN.
+- Phiếu in tự dùng bản dịch của món đồ theo ngôn ngữ đã chọn.
+- Bảng `item_catalog` được Worker tự tạo và seed danh mục mặc định nếu chưa có dữ liệu.
