@@ -7,6 +7,20 @@ function fmtDay(v){if(!v)return '-'; const [y,m,d]=String(v).split('-'); return 
 function deptName(d){return d==='fb'?'F&B':d==='housekeeping'?'Housekeeping':'Lễ tân'}
 function statusText(s){return {borrowing:'Đang mượn',partial:'Đã trả một phần',returned:'Đã trả đủ',resolved_issue:'Đã xử lý mất/hỏng'}[s]||s}
 function padQty(v){return String(Math.max(1,Number(v)||1)).padStart(2,'0')}
+const ITEM_I18N={
+  'ly thủy tinh':{en:'Glass',zh:'玻璃杯',ko:'유리컵'},'ly rượu vang':{en:'Wine glass',zh:'红酒杯',ko:'와인잔'},'tách cà phê':{en:'Coffee cup',zh:'咖啡杯',ko:'커피잔'},
+  'muỗng':{en:'Spoon',zh:'勺子',ko:'숟가락'},'nĩa':{en:'Fork',zh:'叉子',ko:'포크'},'dao ăn':{en:'Table knife',zh:'餐刀',ko:'테이블 나이프'},'dao':{en:'Knife',zh:'刀',ko:'칼'},
+  'đĩa':{en:'Plate',zh:'盘子',ko:'접시'},'tô':{en:'Bowl',zh:'碗',ko:'그릇'},'khay':{en:'Tray',zh:'托盘',ko:'쟁반'},'xô đá':{en:'Ice bucket',zh:'冰桶',ko:'얼음통'},
+  'bình nước':{en:'Water jug',zh:'水壶',ko:'물병'},'dụng cụ mở rượu':{en:'Wine opener',zh:'开瓶器',ko:'와인 오프너'},
+  'bàn ủi':{en:'Iron',zh:'熨斗',ko:'다리미'},'cầu là':{en:'Ironing board',zh:'熨衣板',ko:'다리미판'},'móc áo':{en:'Clothes hanger',zh:'衣架',ko:'옷걸이'},
+  'gối':{en:'Pillow',zh:'枕头',ko:'베개'},'chăn':{en:'Blanket',zh:'毯子',ko:'담요'},'khăn tắm':{en:'Bath towel',zh:'浴巾',ko:'목욕 수건'},'khăn mặt':{en:'Face towel',zh:'面巾',ko:'세면 수건'},
+  'máy sấy tóc':{en:'Hair dryer',zh:'吹风机',ko:'헤어드라이어'},'ổ cắm nối dài':{en:'Extension cord',zh:'延长线插座',ko:'연장선'},'nôi em bé':{en:'Baby cot',zh:'婴儿床',ko:'아기 침대'},'ghế em bé':{en:'Baby chair',zh:'儿童椅',ko:'아기 의자'},
+  'ô / dù':{en:'Umbrella',zh:'雨伞',ko:'우산'},'ô':{en:'Umbrella',zh:'雨伞',ko:'우산'},'dù':{en:'Umbrella',zh:'雨伞',ko:'우산'},'adapter':{en:'Adapter',zh:'转换插头',ko:'어댑터'},
+  'sạc điện thoại':{en:'Phone charger',zh:'手机充电器',ko:'휴대폰 충전기'},'ổ cắm':{en:'Power socket',zh:'插座',ko:'콘센트'},'kéo':{en:'Scissors',zh:'剪刀',ko:'가위'},
+  'cân hành lý':{en:'Luggage scale',zh:'行李秤',ko:'수하물 저울'},'bút':{en:'Pen',zh:'笔',ko:'펜'},'bộ chuyển đổi điện':{en:'Power adapter',zh:'电源转换器',ko:'전원 어댑터'},'dây sạc':{en:'Charging cable',zh:'充电线',ko:'충전 케이블'}
+};
+function itemKey(v){return String(v||'').trim().toLocaleLowerCase('vi-VN').replace(/\s+/g,' ')}
+function translateItem(v,lang){const raw=String(v||'').trim();if(!raw||lang==='vi')return raw;return ITEM_I18N[itemKey(raw)]?.[lang]||raw}
 
 const RECEIPT_TEXT={
   vi:{title:'PHIẾU XÁC NHẬN MƯỢN ĐỒ',code:'MÃ PHIẾU',guest:'Khách',room:'Phòng',department:'Bộ phận',item:'Đồ mượn',qty:'Số lượng',staff:'Nhân viên giao',borrowed:'Thời gian giao',expected:'Dự kiến trả',notes:'Ghi chú',photo:'Ảnh đồ mượn',rulesTitle:'XÁC NHẬN & QUY ĐỊNH MƯỢN ĐỒ',rule:(q,item)=>`Tôi xác nhận đã nhận thêm ${padQty(q)} ${item} từ Sao Mai Phu My Resort. Tôi có trách nhiệm bảo quản và hoàn trả ${item} khi sử dụng xong. Nếu làm mất, làm hỏng hoặc không hoàn trả, tôi đồng ý thanh toán phí bồi thường theo quy định của Sao Mai Phu My Resort.`,guestSign:'KHÁCH XÁC NHẬN',staffSign:'NHÂN VIÊN GIAO',signNote:'Ký và ghi rõ họ tên',place:'Phú Mỹ'},
@@ -16,7 +30,7 @@ const RECEIPT_TEXT={
 };
 
 function renderDept(){const d=DEPTS[dept]; $('#deptEyebrow').textContent=d.eyebrow;$('#deptTitle').textContent=d.title;$('#itemSuggestions').innerHTML=d.items.map(x=>`<option value="${esc(x)}">`).join('');document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));updateRegulationPreview();if(manageOpen)loadRows();}
-function updateRegulationPreview(){const form=$('#loanForm');const q=form.qty?.value||1;const item=form.item_name?.value.trim()||'đồ dùng';const lang=$('#receiptLang').value||'vi';$('#regulationPreview').textContent=RECEIPT_TEXT[lang].rule(q,item)}
+function updateRegulationPreview(){const form=$('#loanForm');const q=form.qty?.value||1;const raw=form.item_name?.value.trim()||'đồ dùng';const lang=$('#receiptLang').value||'vi';const item=translateItem(raw,lang);$('#regulationPreview').textContent=RECEIPT_TEXT[lang].rule(q,item)}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{dept=b.dataset.dept;renderDept()});
 $('#loanForm').addEventListener('input',e=>{if(['qty','item_name','receipt_lang'].includes(e.target.name))updateRegulationPreview()});
 $('#receiptLang').onchange=updateRegulationPreview;
@@ -45,7 +59,7 @@ $('#loanForm').onsubmit=async e=>{
 };
 
 function renderReceipt(row,lang){
-  if(!row)return; lastReceiptLang=lang; const t=RECEIPT_TEXT[lang]||RECEIPT_TEXT.vi;
+  if(!row)return; lastReceiptLang=lang; const t=RECEIPT_TEXT[lang]||RECEIPT_TEXT.vi; const translatedItem=translateItem(row.item_name,lang);
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
   const image=row.image_url?`<div class="receipt-photo"><div class="receipt-label">${esc(t.photo)}</div><img src="${esc(row.image_url)}" alt="${esc(row.item_name)}"></div>`:'';
   const now=new Date(row.created_at); const dateText=Number.isNaN(now.getTime())?esc(row.created_at):now.toLocaleString(lang==='vi'?'vi-VN':lang==='zh'?'zh-CN':lang==='ko'?'ko-KR':'en-GB');
@@ -56,12 +70,12 @@ function renderReceipt(row,lang){
     <div class="receipt-info">
       <div><span>${esc(t.guest)}</span><b>${esc(row.guest_name)}</b></div><div><span>${esc(t.room)}</span><b>${esc(row.room_no)}</b></div>
       <div><span>${esc(t.department)}</span><b>${esc(deptName(row.department))}</b></div><div><span>${esc(t.staff)}</span><b>${esc(row.staff_name||'-')}</b></div>
-      <div><span>${esc(t.item)}</span><b>${esc(row.item_name)}</b></div><div><span>${esc(t.qty)}</span><b>${esc(row.qty)}</b></div>
+      <div><span>${esc(t.item)}</span><b>${esc(translatedItem)}</b></div><div><span>${esc(t.qty)}</span><b>${esc(row.qty)}</b></div>
       <div><span>${esc(t.borrowed)}</span><b>${dateText}</b></div><div><span>${esc(t.expected)}</span><b>${expected}</b></div>
       ${row.notes?`<div class="receipt-wide"><span>${esc(t.notes)}</span><b>${esc(row.notes)}</b></div>`:''}
     </div>
     ${image}
-    <div class="receipt-rules"><h3>${esc(t.rulesTitle)}</h3><p>${esc(t.rule(row.qty,row.item_name))}</p></div>
+    <div class="receipt-rules"><h3>${esc(t.rulesTitle)}</h3><p>${esc(t.rule(row.qty,translatedItem))}</p></div>
     <div class="receipt-date">${esc(t.place)}, ${new Date(row.created_at).toLocaleDateString(lang==='vi'?'vi-VN':lang==='zh'?'zh-CN':lang==='ko'?'ko-KR':'en-GB')}</div>
     <div class="receipt-signatures"><div><b>${esc(t.guestSign)}</b><span>${esc(t.signNote)}</span><i></i></div><div><b>${esc(t.staffSign)}</b><span>${esc(t.signNote)}</span><i></i></div></div>`;
 }
