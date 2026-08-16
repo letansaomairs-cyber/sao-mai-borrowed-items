@@ -2,31 +2,28 @@
 
 Website nội bộ quản lý công cụ/đồ dùng khách mượn tại Sao Mai Phu My Resort.
 
-## 3 bộ phận
+## Bộ phận
 - F&B
 - Housekeeping
 - Lễ tân
 
-## Điểm chính
-- Tạo phiếu mượn theo tên khách + phòng + món + số lượng.
+## Chức năng
+- Tạo phiếu mượn theo tên khách + phòng + đồ/công cụ + số lượng.
+- Upload 01 ảnh nhận diện đồ mượn, tối đa 5MB (JPG/PNG/WEBP/GIF), lưu trong Cloudflare R2.
+- Tạo phiếu xác nhận và in A4 bằng 4 ngôn ngữ: Việt / Anh / Trung / Hàn.
 - Theo dõi trả từng món / trả hết / mất / hỏng.
 - Tìm kiếm theo tên khách, phòng, đồ mượn hoặc mã phiếu.
-- Ô **Kiểm tra trước checkout** tra cứu đồng thời cả 3 bộ phận để biết phòng còn đồ chưa thu hồi.
-- PIN quản lý dùng biến Cloudflare `ADMIN_PIN` (nếu chưa khai báo, code mặc định 1000).
+- Kiểm tra trước checkout cả 3 bộ phận để biết phòng còn đồ chưa thu hồi.
+- PIN quản lý dùng biến Cloudflare `ADMIN_PIN` (nếu chưa khai báo, mặc định `1000`).
 
-## Triển khai Cloudflare Pages
-1. Tạo repository GitHub mới, ví dụ `sao-mai-borrowed-items`.
-2. Upload toàn bộ nội dung thư mục này lên repository.
-3. Cloudflare → D1 → Create database: `sao-mai-borrowed-items-db`.
-4. Mở D1 Console và chạy toàn bộ `schema.sql`.
-5. Tạo Cloudflare Pages từ GitHub repo.
-   - Build command: để trống
-   - Build output directory: `public`
-6. Pages → Settings → Bindings → D1 database:
-   - Variable name: `DB`
-   - Database: `sao-mai-borrowed-items-db`
-7. Settings → Variables and Secrets → tạo `ADMIN_PIN` = PIN quản lý mong muốn (ví dụ 1000).
-8. Redeploy.
+## Cloudflare bindings
+- D1: `DB` -> `saomai-borrowed-items-db`
+- R2: `IMAGES` -> `saomai-borrowed-items-images`
+- Static assets: `ASSETS`
 
-## Quy trình checkout đề xuất
-Trước khi hoàn tất checkout: nhập số phòng tại **Kiểm tra trước checkout**. Chỉ khi hiện màu xanh “Không còn đồ chưa trả” mới hoàn tất quy trình, hoặc xử lý các món đang còn mở trước.
+Các binding đã được khai báo trong `wrangler.jsonc` để giữ nguyên khi deploy bằng Wrangler.
+
+## Database
+Chạy `schema.sql` cho database mới. Với database hiện có, Worker sẽ tự tạo bảng `loan_images` khi cần, vì vậy không bắt buộc chạy migration thủ công để bắt đầu sử dụng ảnh.
+
+Ảnh thật được lưu trong R2; D1 chỉ lưu metadata và object key.

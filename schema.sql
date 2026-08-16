@@ -31,3 +31,17 @@ CREATE INDEX IF NOT EXISTS idx_loans_room ON loan_records(room_no);
 CREATE INDEX IF NOT EXISTS idx_loans_department ON loan_records(department);
 CREATE INDEX IF NOT EXISTS idx_loans_created ON loan_records(created_at);
 CREATE INDEX IF NOT EXISTS idx_history_loan ON loan_history(loan_id);
+
+-- Ảnh đồ mượn được lưu trong R2; D1 chỉ lưu metadata và R2 object key.
+CREATE TABLE IF NOT EXISTS loan_images (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  loan_id INTEGER NOT NULL,
+  object_key TEXT NOT NULL UNIQUE,
+  file_name TEXT,
+  content_type TEXT,
+  file_size INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (loan_id) REFERENCES loan_records(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_loan_images_loan ON loan_images(loan_id);
