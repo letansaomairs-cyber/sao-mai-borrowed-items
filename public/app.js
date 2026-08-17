@@ -1,4 +1,4 @@
-let dept='fb', adminPin='', departmentPin='', manageOpen=false, lastReceipt=null, lastReceiptLang='vi', catalogItems=[];
+let dept='fb', departmentPin='', departmentPins={}, manageOpen=false, lastReceipt=null, lastReceiptLang='vi', catalogItems=[];
 const DEPT_UNLOCK_KEY='saoMaiBorrowedDeptUnlocked:';
 const DEPTS={fb:{eyebrow:'F&B',title:'Quản lý công cụ F&B',items:['Ly thủy tinh','Ly rượu vang','Tách cà phê','Muỗng','Nĩa','Dao ăn','Đĩa','Tô','Khay','Xô đá','Bình nước','Dụng cụ mở rượu']},housekeeping:{eyebrow:'HOUSEKEEPING',title:'Quản lý công cụ Housekeeping',items:['Bàn ủi','Cầu là','Móc áo','Gối','Chăn','Khăn tắm','Khăn mặt','Máy sấy tóc','Ổ cắm nối dài','Nôi em bé','Ghế em bé']},reception:{eyebrow:'LỄ TÂN',title:'Quản lý công cụ Lễ tân',items:['Ô / dù','Adapter','Sạc điện thoại','Ổ cắm','Kéo','Cân hành lý','Bút','Bộ chuyển đổi điện','Dây sạc']}};
 const $=s=>document.querySelector(s);
@@ -34,7 +34,7 @@ async function loadCatalog(){const r=await fetch(`/api/items?department=${encode
 async function renderDept(){const d=DEPTS[dept]; $('#deptEyebrow').textContent=d.eyebrow;$('#deptTitle').textContent=d.title;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));try{await loadCatalog()}catch(e){console.error(e);const sel=$('#itemName');sel.innerHTML='<option value="">-- Chọn đồ mượn --</option>'+d.items.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}updateRegulationPreview();if(manageOpen)loadRows();if(!$('#catalogManager').classList.contains('hidden'))loadCatalogManager();}
 function updateRegulationPreview(){const form=$('#loanForm');const q=form.qty?.value||1;const raw=form.item_name?.value.trim()||'đồ dùng';const lang=$('#receiptLang').value||'vi';const item=translateItem(raw,lang);$('#regulationPreview').textContent=RECEIPT_TEXT[lang].rule(q,item)}
 async function unlockDepartment(targetDept){
-  if(sessionStorage.getItem(DEPT_UNLOCK_KEY+targetDept)==='1')return true;
+  if(sessionStorage.getItem(DEPT_UNLOCK_KEY+targetDept)==='1' && departmentPins[targetDept])return true;
   const label=deptName(targetDept);
   const pin=prompt(`Nhập mã khóa để vào ${label}`);
   if(pin===null)return false;
@@ -43,12 +43,14 @@ async function unlockDepartment(targetDept){
     const j=await r.json();
     if(!r.ok){alert(j.error||'Sai mã khóa');return false;}
     sessionStorage.setItem(DEPT_UNLOCK_KEY+targetDept,'1');
+    departmentPins[targetDept]=String(pin).trim();
     return true;
   }catch(e){alert('Không kiểm tra được mã khóa. Vui lòng thử lại.');return false;}
 }
 async function enterDepartment(targetDept){
   if(!(await unlockDepartment(targetDept)))return;
   dept=targetDept;
+  departmentPin=departmentPins[targetDept]||'';
   const main=document.querySelector('main'); if(main)main.style.display='';
   await renderDept();
 }
@@ -57,27 +59,27 @@ $('#loanForm').addEventListener('input',e=>{if(['qty','item_name','receipt_lang'
 $('#receiptLang').onchange=updateRegulationPreview;$('#itemName').onchange=updateRegulationPreview;
 
 
-function openItemModal(){const f=$('#itemForm');f.reset();f.pin.value=adminPin||'';$('#itemModal').classList.remove('hidden');setTimeout(()=>f.name_vi.focus(),50)}
+function openItemModal(){const f=$('#itemForm');f.reset();f.pin.value=departmentPins[dept]||departmentPin||'';$('#itemModal').classList.remove('hidden');setTimeout(()=>f.name_vi.focus(),50)}
 function closeItemModal(){$('#itemModal').classList.add('hidden')}
 $('#addItemBtn').onclick=openItemModal;$('#closeItemModal').onclick=closeItemModal;$('#cancelItemModal').onclick=closeItemModal;$('#itemModal').onclick=e=>{if(e.target.id==='itemModal')closeItemModal()};
 $('#autoTranslateBtn').onclick=async()=>{
   const f=$('#itemForm'),name_vi=f.name_vi.value.trim(),pin=f.pin.value.trim(),btn=$('#autoTranslateBtn'),st=$('#translateStatus');
   if(!name_vi)return alert('Nhập tên tiếng Việt trước khi dịch.');
-  if(!pin)return alert('Nhập PIN quản lý để sử dụng tự động dịch.');
+  if(!pin)return alert('Nhập PIN bộ phận để sử dụng tự động dịch.');
   btn.disabled=true;btn.textContent='Đang dịch…';st.textContent='Workers AI đang dịch sang EN / 中文 / 한국어…';
   try{
-    const r=await fetch('/api/translate-item',{method:'POST',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify({name_vi})});
+    const r=await fetch('/api/translate-item',{method:'POST',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify({department:dept,name_vi})});
     const j=await r.json();if(!r.ok)throw new Error(j.error||'Không dịch được');
-    f.name_en.value=j.name_en||'';f.name_zh.value=j.name_zh||'';f.name_ko.value=j.name_ko||'';adminPin=pin;
+    f.name_en.value=j.name_en||'';f.name_zh.value=j.name_zh||'';f.name_ko.value=j.name_ko||'';departmentPin=pin;departmentPins[dept]=pin;
     st.textContent='✓ Đã tự động dịch. Có thể chỉnh lại nếu cần trước khi lưu.';
   }catch(e){st.textContent='Không dịch được: '+e.message;alert(e.message)}
   finally{btn.disabled=false;btn.textContent='✨ Tự động dịch'}
 };
-$('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,pin=f.pin.value.trim();if(!pin)return alert('Nhập PIN quản lý');const body={department:dept,name_vi:f.name_vi.value.trim(),name_en:f.name_en.value.trim(),name_zh:f.name_zh.value.trim(),name_ko:f.name_ko.value.trim()};const submit=e.submitter;if(submit){submit.disabled=true;submit.textContent='Đang lưu…'}try{const r=await fetch('/api/items',{method:'POST',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(j.error||'Không thêm được đồ');adminPin=pin;closeItemModal();await loadCatalog();$('#itemName').value=j.item?.name_vi||body.name_vi;updateRegulationPreview();alert(`${j.restored?'Đã khôi phục món cũ và cập nhật bản dịch.':'Đã thêm vào danh mục.'}\nEN: ${j.item?.name_en||''}\n中文: ${j.item?.name_zh||''}\n한국어: ${j.item?.name_ko||''}`);if(!$('#catalogManager').classList.contains('hidden'))loadCatalogManager();}catch(err){alert(err.message)}finally{if(submit){submit.disabled=false;submit.textContent='Lưu vào danh mục'}}};
+$('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,pin=f.pin.value.trim();if(!pin)return alert('Nhập PIN bộ phận');const body={department:dept,name_vi:f.name_vi.value.trim(),name_en:f.name_en.value.trim(),name_zh:f.name_zh.value.trim(),name_ko:f.name_ko.value.trim()};const submit=e.submitter;if(submit){submit.disabled=true;submit.textContent='Đang lưu…'}try{const r=await fetch('/api/items',{method:'POST',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(j.error||'Không thêm được đồ');departmentPin=pin;departmentPins[dept]=pin;closeItemModal();await loadCatalog();$('#itemName').value=j.item?.name_vi||body.name_vi;updateRegulationPreview();alert(`${j.restored?'Đã khôi phục món cũ và cập nhật bản dịch.':'Đã thêm vào danh mục.'}\nEN: ${j.item?.name_en||''}\n中文: ${j.item?.name_zh||''}\n한국어: ${j.item?.name_ko||''}`);if(!$('#catalogManager').classList.contains('hidden'))loadCatalogManager();}catch(err){alert(err.message)}finally{if(submit){submit.disabled=false;submit.textContent='Lưu vào danh mục'}}};
 $('#catalogManageBtn').onclick=()=>{$('#catalogManager').classList.remove('hidden');loadCatalogManager()};$('#closeCatalogManager').onclick=()=>$('#catalogManager').classList.add('hidden');
 async function loadCatalogManager(){try{await loadCatalog();$('#catalogDeptName').textContent=deptName(dept);$('#catalogRows').innerHTML=catalogItems.map(x=>`<div class="catalog-row"><b>${esc(x.name_vi)}</b><span>${esc(x.name_en||'—')}</span><span>${esc(x.name_zh||'—')}</span><span>${esc(x.name_ko||'—')}</span><div class="catalog-actions"><button class="secondary" onclick="editCatalog(${x.id})">Sửa</button><button class="danger" onclick="deleteCatalog(${x.id})">Xóa</button></div></div>`).join('')||'<div>Chưa có danh mục.</div>'}catch(e){alert(e.message)}}
-window.editCatalog=async id=>{const x=catalogItems.find(v=>Number(v.id)===Number(id));if(!x)return;const pin=adminPin||prompt('PIN quản lý');if(!pin)return;const name_vi=prompt('Tên tiếng Việt',x.name_vi);if(name_vi===null)return;const name_en=prompt('English',x.name_en||'');if(name_en===null)return;const name_zh=prompt('中文',x.name_zh||'');if(name_zh===null)return;const name_ko=prompt('한국어',x.name_ko||'');if(name_ko===null)return;const r=await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify({department:dept,name_vi,name_en,name_zh,name_ko})});const j=await r.json();if(!r.ok)return alert(j.error||'Không sửa được');adminPin=pin;await loadCatalogManager()};
-window.deleteCatalog=async id=>{if(!confirm('Xóa đồ này khỏi danh mục? Các phiếu cũ vẫn giữ nguyên.'))return;const pin=adminPin||prompt('PIN quản lý');if(!pin)return;const r=await fetch(`/api/items/${id}`,{method:'DELETE',headers:{'x-admin-pin':pin}});const j=await r.json();if(!r.ok)return alert(j.error||'Không xóa được');adminPin=pin;await loadCatalogManager()};
+window.editCatalog=async id=>{const x=catalogItems.find(v=>Number(v.id)===Number(id));if(!x)return;const pin=departmentPins[dept]||departmentPin||prompt(`PIN ${deptName(dept)}`);if(!pin)return;const name_vi=prompt('Tên tiếng Việt',x.name_vi);if(name_vi===null)return;const name_en=prompt('English',x.name_en||'');if(name_en===null)return;const name_zh=prompt('中文',x.name_zh||'');if(name_zh===null)return;const name_ko=prompt('한국어',x.name_ko||'');if(name_ko===null)return;const r=await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'content-type':'application/json','x-admin-pin':pin},body:JSON.stringify({department:dept,name_vi,name_en,name_zh,name_ko})});const j=await r.json();if(!r.ok)return alert(j.error||'Không sửa được');departmentPin=pin;departmentPins[dept]=pin;await loadCatalogManager()};
+window.deleteCatalog=async id=>{if(!confirm('Xóa đồ này khỏi danh mục? Các phiếu cũ vẫn giữ nguyên.'))return;const pin=departmentPins[dept]||departmentPin||prompt(`PIN ${deptName(dept)}`);if(!pin)return;const r=await fetch(`/api/items/${id}`,{method:'DELETE',headers:{'x-admin-pin':pin}});const j=await r.json();if(!r.ok)return alert(j.error||'Không xóa được');departmentPin=pin;departmentPins[dept]=pin;await loadCatalogManager()};
 
 $('#loanImage').onchange=()=>{const f=$('#loanImage').files[0];const box=$('#imagePreview');box.innerHTML='';box.classList.add('hidden');if(!f)return;if(f.size>5*1024*1024){$('#loanImage').value='';return alert('Ảnh tối đa 5MB. Vui lòng chọn ảnh nhỏ hơn.')}if(!/^image\/(jpeg|png|webp|gif)$/i.test(f.type)){ $('#loanImage').value=''; return alert('Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.'); }const url=URL.createObjectURL(f);box.innerHTML=`<img src="${url}" alt="Xem trước"><span>${esc(f.name)} · ${(f.size/1024/1024).toFixed(2)} MB</span>`;box.classList.remove('hidden')};
 
@@ -127,7 +129,7 @@ document.querySelectorAll('.lang-btn').forEach(b=>b.onclick=()=>{if(lastReceipt)
 $('#printReceipt').onclick=()=>window.print();
 $('#newReceipt').onclick=()=>{$('#receiptSection').classList.add('hidden');$('#loanForm').scrollIntoView({behavior:'smooth'})};
 
-$('#openManage').onclick=()=>{departmentPin=$('#adminPin').value.trim();if(!departmentPin)return alert('Nhập mã bộ phận');manageOpen=true;$('#manageArea').classList.remove('hidden');loadRows()};
+$('#openManage').onclick=()=>{departmentPin=$('#adminPin').value.trim();if(!departmentPin)return alert('Nhập mã bộ phận');departmentPins[dept]=departmentPin;manageOpen=true;$('#manageArea').classList.remove('hidden');loadRows()};
 $('#refreshBtn').onclick=loadRows;$('#searchQ').oninput=()=>{clearTimeout(window._qt);window._qt=setTimeout(loadRows,250)};$('#statusFilter').onchange=loadRows;
 async function loadRows(){const q=$('#searchQ').value.trim(),st=$('#statusFilter').value;const u=new URL('/api/loans',location.origin);u.searchParams.set('department',dept);if(q)u.searchParams.set('q',q);if(st)u.searchParams.set('status',st);const r=await fetch(u,{headers:{'x-admin-pin':departmentPin}});const j=await r.json();if(!r.ok){manageOpen=false;$('#manageArea').classList.add('hidden');return alert(j.error||'Không mở được danh sách')}const rows=j.rows||[];$('#stOpen').textContent=rows.filter(x=>x.remaining_qty>0).length;$('#stItems').textContent=rows.reduce((a,x)=>a+x.remaining_qty,0);$('#stReturned').textContent=rows.filter(x=>x.status==='returned').length;$('#stIssue').textContent=rows.filter(x=>x.status==='resolved_issue').length;$('#loanRows').innerHTML=rows.map(rowHtml).join('')||'<tr><td colspan="10">Chưa có dữ liệu.</td></tr>'}
 function rowHtml(r){const img=r.image_url?`<a href="${esc(r.image_url)}" target="_blank" class="thumb-link"><img src="${esc(r.image_url)}" class="thumb" alt="Ảnh"></a>`:'<span class="no-photo">—</span>';return `<tr><td>${img}</td><td><b>${esc(r.code)}</b><br><small>${esc(deptName(r.department))}</small></td><td><b>${esc(r.guest_name)}</b><br>Phòng ${esc(r.room_no)}${r.staff_name?`<br><small>NV: ${esc(r.staff_name)}</small>`:''}</td><td>${esc(r.item_name)}${r.notes?`<br><small>${esc(r.notes)}</small>`:''}</td><td>${r.qty}<br><small>Trả ${r.returned_qty} · Mất ${r.lost_qty} · Hỏng ${r.damaged_qty}</small></td><td><b>${r.remaining_qty}</b></td><td>${fmtDate(r.created_at)}</td><td>${fmtDay(r.expected_return_date)}</td><td><span class="badge ${esc(r.status)}">${esc(statusText(r.status))}</span></td><td><div class="row-actions">${r.remaining_qty>0?`<button class="secondary" onclick="act(${r.id},'return_one')">Trả 1</button><button class="secondary" onclick="act(${r.id},'return_all')">Trả hết</button><button class="warn" onclick="act(${r.id},'lost_one')">Mất 1</button><button class="warn" onclick="act(${r.id},'damaged_one')">Hỏng 1</button>`:''}<button class="secondary" onclick="printLoan(${r.id})">Phiếu</button><button class="danger" onclick="delLoan(${r.id})">Xóa</button></div></td></tr>`}
