@@ -38,3 +38,18 @@ Chạy `schema.sql` cho database mới. Với database hiện có, Worker sẽ t
 
 ## Workers AI tự động dịch
 `wrangler.jsonc` đã cấu hình AI binding `AI`. Khi thêm đồ mới, Worker dùng Workers AI để dịch tên tiếng Việt sang English, Simplified Chinese và Korean.
+
+
+## Mã khóa vào bộ phận
+- F&B: `7777`
+- Housekeeping: `3009`
+- Lễ tân/Reception: `1000`
+
+Có thể ghi đè bằng biến môi trường `DEPT_PIN_FB`, `DEPT_PIN_HOUSEKEEPING`, `DEPT_PIN_RECEPTION`.
+
+## V2.6 - PIN theo bộ phận cho kiểm tra checkout và quản lý danh sách
+- F&B: 7777
+- Housekeeping: 3009
+- Lễ tân / Reception: 1000
+- Hai khu vực "Kiểm tra trước checkout" và "Quản lý danh sách" xác thực theo bộ phận đang mở.
+- Kiểm tra checkout vẫn kiểm tra đồ chưa thu hồi của cả 3 bộ phận trong phòng, nhưng quyền thực hiện dùng mã của bộ phận đang đăng nhập.
